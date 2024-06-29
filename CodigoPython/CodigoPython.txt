@@ -1,0 +1,47 @@
+import pandas as pd
+import mysql.connector
+
+# Conectar a la base de datos
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="0000",
+    database="integrador"
+)
+
+cursor = conn.cursor()
+
+# Ruta al archivo CSV
+csv_file_path = r'C:\Users\darav\Desktop\Base datos A\Segundo Bimestre\Datos limpios de verdad\persona2024.csv'
+
+# Leer el archivo CSV con pandas
+df = pd.read_csv(csv_file_path)
+
+# Reemplazar valores NaN con None
+df = df.where(pd.notnull(df), None)
+
+# Asegurarse de que las columnas numéricas tengan el tipo de datos correcto
+df['numero_detenciones'] = df['numero_detenciones'].astype(pd.Int64Dtype())
+df['edad'] = df['edad'].astype(pd.Int64Dtype())
+
+# Verificar y manejar valores nulos en la columna 'sexo'
+df['sexo'] = df['sexo'].fillna('Desconocido')  # Rellenar NaN con un valor predeterminado, por ejemplo 'Desconocido'
+
+# Iterar sobre el DataFrame e insertar los datos en la base de datos
+for index, row in df.iterrows():
+    # Convertir cualquier valor de `nan` a `None`
+    row = tuple(None if pd.isna(val) else val for val in row)
+    
+    # Verificar que 'sexo' no sea None o vacío antes de la inserción
+    if row[-1] is None or row[-1] == '':
+        row = (*row[:-1], 'Desconocido')  # Si 'sexo' es None o vacío, reemplazarlo con 'Desconocido'
+    
+    cursor.execute('''
+        INSERT INTO personas (nacionalidad, autoidentificacion_etnica, estatus_migratorio, numero_detenciones, estado_civil, nivel_de_instruccion, genero, edad, sexo)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ''', row)
+
+# Confirmar los cambios y cerrar la conexión
+conn.commit()
+cursor.close()
+conn.close()
